@@ -28,17 +28,42 @@ func NewConnection() *DB {
 }
 
 func (self *DB) Close() {
-	if self.db != nil {
+	if self != nil && self.db != nil {
 		self.db.Close()
 	}
 }
 
 func (self *DB) IsOpened() (bool, error) {
-	if err := self.db.Ping(); err == nil {
-		return true, nil
+	if self == nil || self.db == nil {
+		return false, nil
 	} else {
-		return false, err
+		fmt.Println("ccc")
+		if err := self.db.Ping(); err == nil {
+			return true, nil
+		} else {
+			return false, err
+		}
 	}
+}
+
+func (self *DB) GetDB() (*DB, error) {
+	bln, error :=  self.IsOpened() 
+	if bln {
+		fmt.Println("bbb")
+		return self, error
+	} else {
+		return NewConnection(), nil
+	}
+}
+
+func (self *DB) GetRow(query string, id int) int {
+	if err := self.db.QueryRow(query).Scan(&id); err == nil {
+		fmt.Println("id::::::::::::", id)
+
+		return id
+	}
+	
+	return -1
 }
 
 // func (self *DB) GetAFiled(query as string, fld as interface{}) as (interface{}, error) {
