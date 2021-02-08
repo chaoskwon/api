@@ -3,9 +3,6 @@ package route
 import (
 	"fmt"
 	"net/http"
-	// "github.com/eurie-inc/echo-sample/api"
-	// "github.com/eurie-inc/echo-sample/db"
-	// "github.com/eurie-inc/echo-sample/handler"
 	// myMw "github.com/eurie-inc/echo-sample/middleware"
 	"github.com/labstack/echo"
 	echoMw "github.com/labstack/echo/middleware"
@@ -16,42 +13,14 @@ import (
 
 var db *lib.DB
 
-func Init() *echo.Echo {
-	e := echo.New()
-
-	// e.Debug()
-	db = lib.NewConnection()
-	// request path에서 마지막에 '/' 있는 경우 제거
-	// e.Pre(middleware.RemoveTrailingSlash())
-	// 처리 도중 문제 발생 시 서버를 죽이지 않고 계속 수행하도록 설정
-  e.Use(echoMw.Recover())
-	// Set Bundle MiddleWare
-	e.Use(echoMw.Logger())
-	// e.Use(echoMw.Gzip())
-	e.Use(echoMw.CORSWithConfig(echoMw.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAcceptEncoding},
-	}))
-	// e.SetHTTPErrorHandler(handler.JSONHTTPErrorHandler)
-	e.HTTPErrorHandler = customHTTPErrorHandler
-
-	// Set Custom MiddleWare
-	// e.Use(myMw.TransactionHandler(db.Init()))
-
-	// Routes
-	e.GET("/", handler)
-	authRoute(e)
-	gWWW := e.Group("/www")
-	gWWWRoute(gWWW)
-
-	return e
-}
-
 func Router() *echo.Echo {
 	e := echo.New()
 
 	// e.Debug()
 
+	fmt.Println("1******************")
+	db = lib.NewConnection()
+	fmt.Println("2******************")
 	// e.Static("/static", "public")
 	e.Static("/static", "public")
 
@@ -88,8 +57,9 @@ func Router() *echo.Echo {
 
 func authRoute(e *echo.Echo) {
 	// e.POST("/login", wwwwDefault)
-	fmt.Println("111111111")
+	// fmt.Println("111111111")
 	e.POST("/signin", signinHandler)
+	e.GET("/register", registerHandler)
 }
 
 func gWWWRoute(e *echo.Group) {
@@ -105,7 +75,7 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	}
 	errorPage := fmt.Sprintf("/static/%d.html", code)
 	
-	errorPage = "404.html"
+	// errorPage = "404.html"
 	fmt.Println("ERROR PAGE :::::::::::::::", errorPage)
 	if err := c.File(errorPage); err != nil {
 		c.Logger().Error(err)
@@ -125,6 +95,22 @@ func signinHandler(c echo.Context) error {
 	fmt.Println("====================", email, "===", password, "===================")
 
 	if bln, _ := auth.SignIn(db, email, password); bln {
+		str := c.Request().RequestURI + " OK \n" + email + "\n" + password
+		return c.String(http.StatusOK, str)
+	} else {
+		return c.String(http.StatusOK, c.Request().RequestURI)
+	}
+
+	// return c.String(http.StatusOK, c.Request().RequestURI)
+	// return c.File("/static/404.html")
+}
+
+func registerHandler(c echo.Context) error {
+	email := c.QueryParam("email")
+	password := c.QueryParam("password")
+	fmt.Println("==", email, "===", password, "===================")
+
+	if bln, _ := auth.Register(db, email, password); bln {
 		str := c.Request().RequestURI + " OK \n" + email + "\n" + password
 		return c.String(http.StatusOK, str)
 	} else {
