@@ -6,7 +6,7 @@ import (
 	"errors"	
 
 	"database/sql"	
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 type DB struct {
@@ -19,9 +19,10 @@ func NewConnection() *DB {
 		panic(err)
 	}
 
-	fmt.Println("DB Connected")
+	fmt.Println("DB:Connection Established")
 	// See "Important settings" section.
-	db.SetConnMaxLifetime(time.Second * 60)
+	// db.SetConnMaxLifetime(time.Second * 60)
+	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
@@ -48,6 +49,7 @@ func (self *DB) IsOpened() error {
 
 func (self *DB) GetDB() (*DB, error) {
 	if err :=  self.IsOpened(); err != nil {
+		fmt.Println("DB:Existed Connection Returned")
 		return self, err
 	} 
 	
@@ -55,26 +57,21 @@ func (self *DB) GetDB() (*DB, error) {
 }
 
 func (self *DB) GetRow(query string, args ...interface{}) error {
-	if err := self.db.QueryRow(query).Scan(args...); err != nil {
+	if err := self.db.QueryRow(query).Scan(args...); err != nil && err != sql.ErrNoRows {
 		return err
 	} 
-
 	return nil
 }
 
-func (self *DB) Exec(query string, args ...interface{}) (error) {
+func (self *DB) Exec(query string, args ...interface{}) (int64, error) {
 	if result, err := self.db.Exec(query); err != nil {
-		return err		
+		if mysqlError, ok := err.(*mysql.MySQLError); ok {
+			if mysqlError.Number == 1062 { return 0, nil } //ER_DUP_ENTRY 
+			return -1, errors.New(fmt.Sprintln("[%s]%s", mysqlError.Number, mysqlError.Message))
+		} 
+		return -1, err
 	} else {
-		if n, err := result.RowsAffected(); err != nil {
-			return err
-		} else {
-			if n == 0 {
-				return errors.New("[ERROR]There's no affected row")
-			} else {
-				return nil
-			}
-		}
+		return result.RowsAffected()
 	}
 }
 	// rows, err := self.db.Query(query, args...)
